@@ -1,268 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logical Bill Splitter</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 1100px; margin: 10px auto; padding: 0 10px; }
-    .section { margin-bottom: 20px; }
-    input, select, button { padding: 6px; margin: 4px 4px 4px 0; }
-    button { cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; padding: 8px 12px; }
-    button:hover { background: #0056b3; }
-    .pdf-btn { background: #28a745; }
-    .pdf-btn:hover { background: #218838; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-    th { background: #f2f2f2; }
-    tfoot td { font-weight: bold; background: #e8f5e8; }
-    .remove-btn { background: #f44336; padding: 4px 8px; }
-    .remove-btn:hover { background: #da190b; }
-    .small-input { width: 120px; }
-    .name-input { width: 160px; }
-    .special-section { margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; }
-    .settlement-card { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; padding: 8px 12px; border-radius: 6px; background: #fff7e6; border: 1px solid #ffd08a; }
-    .settlement-card .payer { color: #d35400; font-weight: bold; }
-    .settlement-card .receiver { color: #1e8449; font-weight: bold; }
-    .settlement-ok { padding: 8px 12px; border-radius: 6px; background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
-    h2 { text-align: center; margin-bottom: 16px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Splitoo - Bill Splitter</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1100px; 
+            margin: 0 auto; 
+            padding: 10px; 
+            background: #f5f5f5;
+        }
+        h1 { text-align: center; color: #333; }
+        .section { 
+            background: white; 
+            padding: 15px; 
+            margin: 15px 0; 
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 { 
+            color: #007bff; 
+            margin-top: 0; 
+            font-size: 18px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        input, select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input { flex: 1; min-width: 150px; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            cursor: pointer;
+            padding: 8px 16px;
+        }
+        button:hover { background: #0056b3; }
+        .remove-btn {
+            background: #dc3545;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        .remove-btn:hover { background: #c82333; }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px;
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 10px;
+            text-align: center;
+        }
+        th { 
+            background: #007bff; 
+            color: white;
+            font-weight: bold;
+        }
+        tbody tr:nth-child(even) { background: #f9f9f9; }
+        .summary-section {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .settlement-good { 
+            background: #d4edda; 
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            color: #155724;
+            text-align: center;
+            font-weight: bold;
+        }
+        .settlement-item {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
-  <h2>Logical Bill Splitter</h2>
-  
-  <div class="section">
-    <h3>Add Persons</h3>
-    <input type="text" id="personInput" placeholder="Person name">
-    <button onclick="addPerson()">Add Person</button>
-    <div id="personList" style="margin-top:10px;"></div>
-  </div>
-
-  <div class="section">
-    <h3>Add Normal Items (shared)</h3>
-    <div style="font-size:12px; color:#555; margin-bottom:10px;">Tick people who consumed that item. Amount is split equally among checked persons.</div>
-    <input type="text" id="itemNameInput" placeholder="Item name" class="name-input">
-    <input type="number" id="itemRateInput" placeholder="Rate" class="small-input" step="0.01">
-    <button onclick="addItem()">Add Item</button>
-  </div>
-
-  <div class="section">
-    <div class="table-wrapper">
-      <table id="billTable">
-        <thead>
-          <tr id="headerRow">
-            <th>Item name</th>
-            <th>Rate</th>
-            <th>Remove</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-        <tfoot>
-          <tr id="totalRow">
-            <td>Total consumed</td>
-            <td id="rateTotalCell">0</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
+    <h1>💳 Splitoo - Logical Bill Splitter</h1>
+    
+    <div class="section">
+        <h2>Add Persons</h2>
+        <div class="input-group">
+            <input type="text" id="personInput" placeholder="Enter person name">
+            <button onclick="addPerson()">+ Add Person</button>
+        </div>
     </div>
-  </div>
-
-  <div class="special-section">
-    <h3>Final Bill</h3>
-    <label>Total bill amount: <input type="number" id="billAmountInput" placeholder="0" class="small-input" step="0.01"></label>
-    <label>Paid by: <select id="billPayerSelect"><option value="">--select person--</option></select></label>
-    <button onclick="addBillPayment()">Add Payment</button>
-    <div class="table-wrapper" style="margin-top:10px;">
-      <table>
-        <thead><tr><th>Amount</th><th>Paid by</th><th>Remove</th></tr></thead>
-        <tbody id="billBody"></tbody>
-      </table>
+    
+    <div class="section">
+        <h2>Add Items (will split equally among selected persons)</h2>
+        <div class="input-group">
+            <input type="text" id="itemNameInput" placeholder="Item name" style="min-width: 200px;">
+            <input type="number" id="itemRateInput" placeholder="Amount" step="0.01" style="width: 120px;">
+            <button onclick="addItem()">+ Add Item</button>
+        </div>
+        <table id="itemsTable">
+            <thead>
+                <tr id="headerRow">
+                    <th>Item</th>
+                    <th>Amount</th>
+                    <th>Remove</th>
+                </tr>
+            </thead>
+            <tbody id="itemBody"></tbody>
+            <tfoot>
+                <tr id="totalsRow">
+                    <td colspan="10" style="background: #e8f5e9; font-weight: bold; text-align: right;">Total: ₹<span id="totalAmount">0.00</span></td>
+                </tr>
+            </tfoot>
+        </table>
     </div>
-  </div>
+    
+    <div class="section">
+        <h2>Bill Payments (who paid how much)</h2>
+        <div class="input-group">
+            <input type="number" id="billAmountInput" placeholder="Amount paid" step="0.01" style="width: 120px;">
+            <select id="billPayerSelect" style="flex: 1; min-width: 150px;">
+                <option value="">-- Select payer --</option>
+            </select>
+            <button onclick="addBillPayment()">+ Add Payment</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Amount</th>
+                    <th>Paid By</th>
+                    <th>Remove</th>
+                </tr>
+            </thead>
+            <tbody id="billBody"></tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>Summary - Who consumed what?</h2>
+        <div id="summary" class="summary-section"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Settlement - Who pays whom?</h2>
+        <div id="settlements" class="summary-section"></div>
+    </div>
 
-  <div style="margin-top:20px; text-align:center;">
-    <button class="pdf-btn" onclick="downloadPDF()" style="font-size:16px; padding:12px 24px;">📥 Download Bill as PDF</button>
-  </div>
+    <script>
+        let persons = [];
+        let items = [];
+        let billPayments = [];
 
-  <div class="special-section">
-    <h3>Summary</h3>
-    <div id="summary"></div>
-  </div>
-
-  <div class="special-section">
-    <h3>Who pays whom</h3>
-    <div id="settlements" style="margin-top:10px;"></div>
-  </div>
-
-  <script>
-    let persons = [];
-    let items = [];
-    let billPayments = [];
-
-    function addPerson() {
-      const input = document.getElementById('personInput');
-      const name = input.value.trim();
-      if (!name) return;
-      persons.push(name);
-      input.value = '';
-      items.forEach(it => it.selected.push(false));
-      rebuildAll();
-    }
-
-    function removePerson(idx) {
-      persons.splice(idx, 1);
-      items.forEach(it => it.selected.splice(idx, 1));
-      billPayments = billPayments.filter((p, i) => p.payerIdx !== idx).map(p => ({...p, payerIdx: p.payerIdx > idx ? p.payerIdx - 1 : p.payerIdx}));
-      rebuildAll();
-    }
-
-    function addItem() {
-      const nameEl = document.getElementById('itemNameInput');
-      const rateEl = document.getElementById('itemRateInput');
-      const name = nameEl.value.trim();
-      const rate = parseFloat(rateEl.value);
-      if (!name || isNaN(rate) || rate <= 0) return;
-      items.push({name, rate, selected: new Array(persons.length).fill(false)});
-      nameEl.value = '';
-      rateEl.value = '';
-      rebuildAll();
-    }
-
-    function removeItem(idx) {
-      items.splice(idx, 1);
-      rebuildAll();
-    }
-
-    function rebuildHeader() {
-      const row = document.getElementById('headerRow');
-      row.innerHTML = '<th>Item name</th><th>Rate</th>';
-      persons.forEach(p => row.innerHTML += `<th>${p}</th>`);
-      row.innerHTML += '<th>Remove</th>';
-      
-      const totalRow = document.getElementById('totalRow');
-      totalRow.innerHTML = '<td>Total consumed</td><td id="rateTotalCell">0</td>';
-      persons.forEach(() => totalRow.innerHTML += '<td class="person-total">0</td>');
-      totalRow.innerHTML += '<td></td>';
-      
-      const payerSel = document.getElementById('billPayerSelect');
-      payerSel.innerHTML = '<option value="">--select person--</option>';
-      persons.forEach((p, i) => payerSel.innerHTML += `<option value="${i}">${p}</option>`);
-    }
-
-    function rebuildBody() {
-      const body = document.getElementById('tableBody');
-      body.innerHTML = '';
-      items.forEach((item, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${item.name}</td><td>${item.rate.toFixed(2)}</td>`;
-        persons.forEach((_, j) => {
-          tr.innerHTML += `<td><input type="checkbox" ${item.selected[j] ? 'checked' : ''} onchange="item.selected[${j}] = this.checked; updateAll();"></td>`;
-        });
-        tr.innerHTML += `<td><button class="remove-btn" onclick="removeItem(${i})">X</button></td>`;
-        body.appendChild(tr);
-      });
-    }
-
-    function addBillPayment() {
-      const amt = parseFloat(document.getElementById('billAmountInput').value);
-      const payerIdx = parseInt(document.getElementById('billPayerSelect').value);
-      if (isNaN(amt) || amt <= 0 || isNaN(payerIdx)) return;
-      billPayments.push({payerIdx, amount: amt});
-      document.getElementById('billAmountInput').value = '';
-      rebuildBillBody();
-      updateAll();
-    }
-
-    function removeBillPayment(idx) {
-      billPayments.splice(idx, 1);
-      rebuildBillBody();
-      updateAll();
-    }
-
-    function rebuildBillBody() {
-      const body = document.getElementById('billBody');
-      body.innerHTML = '';
-      billPayments.forEach((p, i) => {
-        body.innerHTML += `<tr><td>${p.amount.toFixed(2)}</td><td>${persons[p.payerIdx]}</td><td><button class="remove-btn" onclick="removeBillPayment(${i})">X</button></td></tr>`;
-      });
-    }
-
-    function updateAll() {
-      const n = persons.length;
-      if (n === 0) return;
-
-      let consumed = new Array(n).fill(0);
-      let rateTotal = 0;
-      items.forEach(item => {
-        rateTotal += item.rate;
-        const count = item.selected.filter(v => v).length;
-        if (count > 0) {
-          const share = item.rate / count;
-          item.selected.forEach((v, idx) => { if (v) consumed[idx] += share; });
+        function addPerson() {
+            const input = document.getElementById('personInput');
+            const name = input.value.trim();
+            if (!name) { alert('Enter person name'); return; }
+            if (persons.includes(name)) { alert('Person already exists'); return; }
+            
+            persons.push(name);
+            input.value = '';
+            
+            // Add checkbox column to existing items
+            items.forEach(item => item.selected.push(false));
+            
+            rebuildAll();
         }
-      });
 
-      document.getElementById('rateTotalCell').textContent = rateTotal.toFixed(2);
-      const totalCells = document.querySelectorAll('#totalRow .person-total');
-      for (let i = 0; i < n; i++) totalCells[i].textContent = consumed[i].toFixed(2);
-
-      let paid = new Array(n).fill(0);
-      billPayments.forEach(p => { paid[p.payerIdx] += p.amount; });
-
-      let net = new Array(n);
-      for (let i = 0; i < n; i++) net[i] = consumed[i] - paid[i];
-
-      let html = '<table><thead><tr><th>Person</th><th>Consumed</th><th>Paid</th><th>Net</th></tr></thead><tbody>';
-      for (let i = 0; i < n; i++) {
-        html += `<tr><td>${persons[i]}</td><td>${consumed[i].toFixed(2)}</td><td>${paid[i].toFixed(2)}</td><td>${net[i].toFixed(2)}</td></tr>`;
-      }
-      html += '</tbody></table>';
-      document.getElementById('summary').innerHTML = html;
-
-      let creditors = [], debtors = [];
-      for (let i = 0; i < n; i++) {
-        if (net[i] < -0.01) creditors.push({idx: i, amt: -net[i]});
-        else if (net[i] > 0.01) debtors.push({idx: i, amt: net[i]});
-      }
-
-      let settlement = '';
-      if (creditors.length === 0 && debtors.length === 0) {
-        settlement = '<div class="settlement-ok">Everyone is settled.</div>';
-      } else {
-        let ci = 0, di = 0;
-        while (ci < creditors.length && di < debtors.length) {
-          const c = creditors[ci], d = debtors[di];
-          const pay = Math.min(c.amt, d.amt);
-          settlement += `<div class="settlement-card"><span><span class="payer">${persons[d.idx]}</span> pays <span style="font-weight:bold;">₹${pay.toFixed(2)}</span> to <span class="receiver">${persons[c.idx]}</span></span></div>`;
-          c.amt -= pay;
-          d.amt -= pay;
-          if (c.amt <= 0.01) ci++;
-          if (d.amt <= 0.01) di++;
+        function addItem() {
+            const nameEl = document.getElementById('itemNameInput');
+            const rateEl = document.getElementById('itemRateInput');
+            const name = nameEl.value.trim();
+            const rate = parseFloat(rateEl.value);
+            
+            if (!name) { alert('Enter item name'); return; }
+            if (isNaN(rate) || rate <= 0) { alert('Enter valid amount'); return; }
+            
+            items.push({ name, rate, selected: new Array(persons.length).fill(false) });
+            nameEl.value = '';
+            rateEl.value = '';
+            
+            rebuildAll();
         }
-      }
-      document.getElementById('settlements').innerHTML = settlement;
-    }
 
-    function rebuildAll() {
-      rebuildHeader();
-      rebuildBody();
-      rebuildBillBody();
-      updateAll();
-    }
+        function removeItem(idx) {
+            items.splice(idx, 1);
+            rebuildAll();
+        }
 
-    function downloadPDF() {
-      const element = document.body;
-      const opt = {
-        margin: 10,
-        filename: 'Splitoo_Bill_' + new Date().toLocaleDateString() + '.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
-      };
-      html2pdf().set(opt).from(element).save();
-    }
-  </script>
+        function addBillPayment() {
+            const amt = parseFloat(document.getElementById('billAmountInput').value);
+            const payerIdx = parseInt(document.getElementById('billPayerSelect').value);
+            
+            if (isNaN(amt) || amt <= 0) { alert('Enter valid amount'); return; }
+            if (isNaN(payerIdx)) { alert('Select payer'); return; }
+            
+            billPayments.push({ payerIdx, amount: amt });
+            document.getElementById('billAmountInput').value = '';
+            
+            rebuildAll();
+        }
+
+        function removeBillPayment(idx) {
+            billPayments.splice(idx, 1);
+            rebuildAll();
+        }
+
+        function rebuildAll() {
+            rebuildItemsTable();
+            rebuildPayersDropdown();
+            rebuildBillTable();
+            updateSummary();
+        }
+
+        function rebuildItemsTable() {
+            const row = document.getElementById('headerRow');
+            row.innerHTML = '<th>Item</th><th>Amount</th>';
+            persons.forEach(p => row.innerHTML += `<th>${p}</th>`);
+            row.innerHTML += '<th>Remove</th>';
+
+            const body = document.getElementById('itemBody');
+            body.innerHTML = '';
+            items.forEach((item, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${item.name}</td><td>₹${item.rate.toFixed(2)}</td>`;
+                persons.forEach((p, j) => {
+                    tr.innerHTML += `<td><input type="checkbox" ${item.selected[j] ? 'checked' : ''} onchange="items[${i}].selected[${j}] = this.checked; updateSummary();"></td>`;
+                });
+                tr.innerHTML += `<td><button class="remove-btn" onclick="removeItem(${i})">Remove</button></td>`;
+                body.appendChild(tr);
+            });
+
+            const total = items.reduce((sum, item) => sum + item.rate, 0);
+            document.getElementById('totalAmount').textContent = total.toFixed(2);
+        }
+
+        function rebuildPayersDropdown() {
+            const select = document.getElementById('billPayerSelect');
+            select.innerHTML = '<option value="">-- Select payer --</option>';
+            persons.forEach((p, i) => select.innerHTML += `<option value="${i}">${p}</option>`);
+        }
+
+        function rebuildBillTable() {
+            const body = document.getElementById('billBody');
+            body.innerHTML = '';
+            billPayments.forEach((p, i) => {
+                body.innerHTML += `<tr><td>₹${p.amount.toFixed(2)}</td><td>${persons[p.payerIdx]}</td><td><button class="remove-btn" onclick="removeBillPayment(${i})">Remove</button></td></tr>`;
+            });
+        }
+
+        function updateSummary() {
+            const n = persons.length;
+            if (n === 0) {
+                document.getElementById('summary').innerHTML = '<p>Add persons first</p>';
+                document.getElementById('settlements').innerHTML = '';
+                return;
+            }
+
+            // Calculate consumption
+            let consumed = new Array(n).fill(0);
+            items.forEach(item => {
+                const count = item.selected.filter(v => v).length;
+                if (count > 0) {
+                    const share = item.rate / count;
+                    item.selected.forEach((v, idx) => {
+                        if (v) consumed[idx] += share;
+                    });
+                }
+            });
+
+            // Calculate payments
+            let paid = new Array(n).fill(0);
+            billPayments.forEach(p => {
+                paid[p.payerIdx] += p.amount;
+            });
+
+            // Build summary table
+            let html = '<table style="width:100%; margin: 10px 0;">';
+            html += '<tr><th>Person</th><th>Consumed</th><th>Paid</th><th>Balance</th></tr>';
+            for (let i = 0; i < n; i++) {
+                const balance = consumed[i] - paid[i];
+                const balanceColor = balance > 0.01 ? 'green' : balance < -0.01 ? 'red' : 'black';
+                html += `<tr><td>${persons[i]}</td><td>₹${consumed[i].toFixed(2)}</td><td>₹${paid[i].toFixed(2)}</td><td style="color:${balanceColor}; font-weight:bold;">₹${balance.toFixed(2)}</td></tr>`;
+            }
+            html += '</table>';
+            document.getElementById('summary').innerHTML = html;
+
+            // Calculate settlements
+            let net = [];
+            for (let i = 0; i < n; i++) net[i] = consumed[i] - paid[i];
+
+            let creditors = [], debtors = [];
+            for (let i = 0; i < n; i++) {
+                if (net[i] < -0.01) creditors.push({ idx: i, amt: -net[i] });
+                else if (net[i] > 0.01) debtors.push({ idx: i, amt: net[i] });
+            }
+
+            let settlement = '';
+            if (creditors.length === 0 && debtors.length === 0) {
+                settlement = '<div class="settlement-good">✓ Everyone is settled perfectly!</div>';
+            } else {
+                let ci = 0, di = 0;
+                while (ci < creditors.length && di < debtors.length) {
+                    const c = creditors[ci], d = debtors[di];
+                    const pay = Math.min(c.amt, d.amt);
+                    settlement += `<div class="settlement-item"><strong>${persons[d.idx]}</strong> pays <strong>₹${pay.toFixed(2)}</strong> to <strong>${persons[c.idx]}</strong></div>`;
+                    c.amt -= pay;
+                    d.amt -= pay;
+                    if (c.amt <= 0.01) ci++;
+                    if (d.amt <= 0.01) di++;
+                }
+            }
+            document.getElementById('settlements').innerHTML = settlement;
+        }
+    </script>
 </body>
 </html>
