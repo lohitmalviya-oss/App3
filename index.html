@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logical Bill Splitter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1100px;
+            margin: 10px auto;
+            padding: 0 10px;
+        }
+        .section { margin-bottom: 20px; }
+        input, select, button {
+            padding: 6px;
+            margin: 4px 4px 4px 0;
+        }
+        button { cursor: pointer; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            text-align: center;
+        }
+        th { background: #f2f2f2; }
+        tfoot td { font-weight: bold; background: #e8f5e8; }
+        .remove-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            cursor:pointer;
+        }
+        .small-input { width: 120px; }
+        .name-input { width: 160px; }
+        .special-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+        }
+        .special-section select { padding: 6px; margin-right: 10px; }
+        .highlight { font-weight: bold; }
+        .row-note { font-size: 12px; color: #555; }
+
+        h2 { text-align: center; margin-bottom: 16px; }
+
+        #whoPaysHeader { display:flex; justify-content:space-between; align-items:baseline; }
+        #whoPaysHeader h3 { margin:0; }
+        #whoPaysDate { font-size:12px; color:#555; }
+
+        .settlement-card {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin:6px 0;
+            padding:8px 12px;
+            border-radius:6px;
+            background: #fff7e6;
+            border:1px solid #ffd08a;
+        }
+        .settlement-card span.payer { color:#d35400; font-weight:bold; }
+        .settlement-card span.receiver { color:#1e8449; font-weight:bold; }
+        .settlement-card span.amount { font-weight:bold; }
+        .settlement-ok {
+            padding:8px 12px;
+            border-radius:6px;
+            background:#e8f5e9;
+            border:1px solid #a5d6a7;
+            color:#2e7d32;
+        }
+
+        .table-wrapper { overflow-x:auto; }
+
+        /* Medium and small screens */
+        @media (max-width: 768px) {
+            body {
+                max-width: 100%;
+                padding: 0 6px;
+            }
+
+            .section, .special-section {
+                margin-bottom: 16px;
+                padding-top: 10px;
+            }
+
+            .small-input,
+            .name-input,
+            input[type="text"],
+            input[type="number"],
+            select {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .section label,
+            .special-section label {
+                display: block;
+                margin-top: 6px;
+            }
+
+            #personList span {
+                display: inline-block;
+                margin-bottom: 4px;
+            }
+
+            .settlement-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        /* Very small phones */
+        @media (max-width: 480px) {
+            th, td {
+                padding: 4px;
+                font-size: 12px;
+            }
+
+            button {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+<h2>Logical Bill Splitter</h2>
+
+<!-- PERSONS -->
+<div class="section">
+    <h3>Add Persons</h3>
+    <input type="text" id="personInput" placeholder="Person name">
+    <button onclick="addPerson()">Add Person</button>
+    <div id="personList" style="margin-top:10px;"></div>
+</div>
+
+<!-- MAIN ITEMS -->
+<div class="section">
+    <h3>Add Normal Items (shared)</h3>
+    <div class="row-note">Tick people who consumed that item. Amount is split equally among checked persons.</div>
+    <input type="text" id="itemNameInput" placeholder="Item name" class="name-input">
+    <input type="number" id="itemRateInput" placeholder="Rate" class="small-input" step="0.01">
+    <button onclick="addItem()">Add Item</button>
+</div>
+
+<div class="table-wrapper">
+<table id="billTable">
+    <thead>
+    <tr id="headerRow">
+        <th>Item name</th>
+        <th>Rate</th>
+        <!-- person headers here -->
+        <th>Remove</th>
+    </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+    <tfoot>
+    <tr id="totalRow">
+        <td>Total consumed</td>
+        <td id="rateTotalCell"></td>
+        <!-- person totals here -->
+        <td></td>
+    </tr>
+    </tfoot>
+</table>
+</div>
+
+<!-- SPECIAL ITEMS -->
+<div class="special-section">
+    <h3>Special Items (outside / separate but still consumed)</h3>
+    <div class="row-note">
+        Example: fish bought from outside, bottle bought separately.  
+        Select item and who paid; consumers are already set via main table checkboxes.
+    </div>
+
+    <div style="margin-bottom:10px;">
+        <label>Special item from above:</label>
+        <select id="specialItemSelect" onchange="updateSpecialPrice()">
+            <option value="">-- select item --</option>
+        </select>
+        <span>Price: <span id="specialItemPrice" class="highlight">0</span></span>
+
+        <label style="margin-left:0; margin-top:6px;">Who paid:</label>
+        <select id="specialPayerSelect">
+            <option value="">-- select person --</option>
+        </select>
+
+        <button onclick="addSpecialItem()">Add special row</button>
+    </div>
+
+    <div class="table-wrapper">
+    <table id="specialTable">
+        <thead>
+        <tr>
+            <th>Item</th>
+            <th>Price</th>
+            <th>Paid by</th>
+            <th>Remove</th>
+        </tr>
+        </thead>
+        <tbody id="specialBody"></tbody>
+    </table>
+    </div>
+</div>
+
+<!-- FINAL RESTAURANT BILL -->
+<div class="special-section">
+    <h3>Final Restaurant Bill (hotel bill)</h3>
+    <div class="row-note">
+        This is the total bill paid at restaurant counter (matching the restaurant invoice).  
+        Add who paid, and apply any overall discount here (split equally across people).
+    </div>
+    <label>Total restaurant bill (invoice amount):</label>
+    <input type="number" id="restaurantTotalInput" placeholder="e.g. 1900" class="small-input" step="0.01">
+
+    <label>Bill amount paid:</label>
+    <input type="number" id="fullBillInput" placeholder="Amount" class="small-input" step="0.01">
+    <label>Paid by:</label>
+    <select id="fullBillPayerSelect">
+        <option value="">-- select person --</option>
+    </select>
+    <button onclick="addFullBillPayment()">Add payment</button>
+
+    <div class="table-wrapper">
+    <table style="margin-top:10px;">
+        <thead>
+        <tr>
+            <th>Amount</th>
+            <th>Paid by</th>
+            <th>Remove</th>
+        </tr>
+        </thead>
+        <tbody id="fullBillBody"></tbody>
+    </table>
+    </div>
+
+    <div style="margin-top:15px;">
+        <label>Discount on restaurant bill:</label>
+        <input type="number" id="discountInput" placeholder="0" class="small-input" step="0.01">
+        <button onclick="setDiscount()">Apply discount</button>
+        <span style="margin-left:15px; display:block; margin-top:6px;">
+            Effective bill after discount:
+            <span id="effectiveBill" class="highlight">0</span>
+        </span>
+    </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="special-section">
+    <h3>Summary</h3>
+    <div id="summary"></div>
+</div>
+
+<!-- SETTLEMENT -->
+<div style="margin-top:20px;">
+  <div id="whoPaysHeader">
+      <h3>Who pays whom</h3>
+      <span id="whoPaysDate"></span>
+  </div>
+  <div id="settlements" style="margin-top:8px;"></div>
+</div>
+
+<script>
+    let persons = [];
+    let items = [];        // {name, rate, selected:[bool,...]}
+    let specialItems = []; // {itemIdx, payerIdx, amount}
+    let directPaid = [];   // restaurant bill per person
+    let fullBillPayments = []; // {payerIdx, amount}
+    let specialPaid = [];  // amounts from special items
+    let tableDiscount = 0; // discount on restaurant bill
+
+    (function setToday() {
+        const d = new Date();
+        const formatted = d.toLocaleDateString(undefined,
+            { year: 'numeric', month: 'short', day: 'numeric' });
+        document.getElementById('whoPaysDate').textContent = 'Date: ' + formatted;
+    })();
+
+    function renderPersonList() {
+        const div = document.getElementById('personList');
+        div.innerHTML = persons.map((p, i) =>
+            `<span style="margin-right:10px;">${p}
+               <button class="remove-btn" onclick="removePerson(${i})">X</button>
+             </span>`
+        ).join('');
+    }
+
+    function addPerson() {
+        const input = document.getElementById('personInput');
+        const name = input.value.trim();
+        if (!name) return;
+        persons.push(name);
+        input.value = '';
+
+        items.forEach(it => it.selected.push(false));
+        directPaid.push(0);
+        specialPaid.push(0);
+
+        renderPersonList();
+        rebuildHeader();
+        rebuildBody();
+        rebuildSpecialDropdowns();
+        updateAll();
+    }
+
+    function removePerson(idx) {
+        if (idx < 0 || idx >= persons.length) return;
+
+        persons.splice(idx, 1);
+        items.forEach(it => it.selected.splice(idx, 1));
+
+        specialItems = specialItems
+            .filter(sp => sp.payerIdx !== idx)
+            .map(sp => ({
+                itemIdx: sp.itemIdx,
+                payerIdx: sp.payerIdx > idx ? sp.payerIdx - 1 : sp.payerIdx,
+                amount: sp.amount
+            }));
+
+        fullBillPayments = fullBillPayments
+            .filter(p => p.payerIdx !== idx)
+            .map(p => ({
+                payerIdx: p.payerIdx > idx ? p.payerIdx - 1 : p.payerIdx,
+                amount: p.amount
+            }));
+
+        directPaid.splice(idx, 1);
+        specialPaid.splice(idx, 1);
+
+        renderPersonList();
+        rebuildHeader();
+        rebuildBody();
+        rebuildSpecialBody();
+        rebuildFullBillTable();
+        rebuildSpecialDropdowns();
+        updateAll();
+    }
+
+    function rebuildHeader() {
+        const headerRow = document.getElementById('headerRow');
+        headerRow.innerHTML = '<th>Item name</th><th>Rate</th>';
+        persons.forEach(p => headerRow.innerHTML += `<th>${p}</th>`);
+        headerRow.innerHTML += '<th>Remove</th>';
+
+        const totalRow = document.getElementById('totalRow');
+        totalRow.innerHTML = '<td>Total consumed</td><td id="rateTotalCell"></td>';
+        persons.forEach(() => totalRow.innerHTML += '<td class="person-total">0</td>');
+        totalRow.innerHTML += '<td></td>';
+
+        const fullSel = document.getElementById('fullBillPayerSelect');
+        fullSel.innerHTML = '<option value="">-- select person --</option>';
+        persons.forEach((p, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = p;
+            fullSel.appendChild(opt);
+        });
+    }
+
+    function addItem() {
+        const nameEl = document.getElementById('itemNameInput');
+        const rateEl = document.getElementById('itemRateInput');
+        const name = nameEl.value.trim();
+        const rate = parseFloat(rateEl.value);
+        if (!name || isNaN(rate) || rate <= 0 || persons.length === 0) return;
+
+        items.push({ name, rate, selected: new Array(persons.length).fill(false) });
+        nameEl.value = '';
+        rateEl.value = '';
+
+        rebuildBody();
+        rebuildSpecialDropdowns();
+        updateAll();
+    }
+
+    function rebuildBody() {
+        const body = document.getElementById('tableBody');
+        body.innerHTML = '';
+        items.forEach((item, i) => {
+            const tr = document.createElement('tr');
+
+            const nameTd = document.createElement('td');
+            nameTd.textContent = item.name;
+            tr.appendChild(nameTd);
+
+            const rateTd = document.createElement('td');
+            rateTd.textContent = item.rate.toFixed(2);
+            tr.appendChild(rateTd);
+
+            persons.forEach((_, j) => {
+                const td = document.createElement('td');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = item.selected[j];
+                cb.onchange = () => { item.selected[j] = cb.checked; updateAll(); };
+                td.appendChild(cb);
+                tr.appendChild(td);
+            });
+
+            const remTd = document.createElement('td');
+            const btn = document.createElement('button');
+            btn.textContent = 'X';
+            btn.className = 'remove-btn';
+            btn.onclick = () => {
+                items.splice(i, 1);
+                specialItems = specialItems.filter(sp => sp.itemIdx !== i);
+                rebuildBody();
+                rebuildSpecialBody();
+                rebuildSpecialDropdowns();
+                updateAll();
+            };
+            remTd.appendChild(btn);
+            tr.appendChild(remTd);
+
+            body.appendChild(tr);
+        });
+    }
+
+    function setDiscount() {
+        const val = parseFloat(document.getElementById('discountInput').value);
+        tableDiscount = isNaN(val) ? 0 : val;
+        updateAll();
+    }
+
+    function rebuildSpecialDropdowns() {
+        const itemSel = document.getElementById('specialItemSelect');
+        const payerSel = document.getElementById('specialPayerSelect');
+
+        itemSel.innerHTML = '<option value="">-- select item --</option>';
+        items.forEach((it, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = `${it.name} (\u20b9${it.rate.toFixed(2)})`;
+            itemSel.appendChild(opt);
+        });
+
+        payerSel.innerHTML = '<option value="">-- select person --</option>';
+        persons.forEach((p, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = p;
+            payerSel.appendChild(opt);
+        });
+    }
+
+    function updateSpecialPrice() {
+        const sel = document.getElementById('specialItemSelect');
+        const priceSpan = document.getElementById('specialItemPrice');
+        const idx = parseInt(sel.value);
+        priceSpan.textContent = isNaN(idx) ? '0' : items[idx].rate.toFixed(2);
+    }
+
+    function addSpecialItem() {
+        const itemIdx = parseInt(document.getElementById('specialItemSelect').value);
+        const payerIdx = parseInt(document.getElementById('specialPayerSelect').value);
+        if (isNaN(itemIdx) || isNaN(payerIdx)) return;
+
+        const amount = items[itemIdx].rate;
+        specialItems.push({ itemIdx, payerIdx, amount });
+        specialPaid[payerIdx] = (specialPaid[payerIdx] || 0) + amount;
+
+        rebuildSpecialBody();
+        updateAll();
+    }
+
+    function rebuildSpecialBody() {
+        const body = document.getElementById('specialBody');
+        body.innerHTML = '';
+        specialItems.forEach((sp, i) => {
+            const tr = document.createElement('tr');
+            const item = items[sp.itemIdx];
+
+            const tdName = document.createElement('td');
+            tdName.textContent = item ? item.name : '(deleted)';
+            tr.appendChild(tdName);
+
+            const tdAmt = document.createElement('td');
+            tdAmt.textContent = sp.amount.toFixed(2);
+            tr.appendChild(tdAmt);
+
+            const tdPayer = document.createElement('td');
+            tdPayer.textContent = persons[sp.payerIdx] || '';
+            tr.appendChild(tdPayer);
+
+            const tdRem = document.createElement('td');
+            const btn = document.createElement('button');
+            btn.textContent = 'X';
+            btn.className = 'remove-btn';
+            btn.onclick = () => {
+                specialPaid[sp.payerIdx] -= sp.amount;
+                specialItems.splice(i, 1);
+                rebuildSpecialBody();
+                updateAll();
+            };
+            tdRem.appendChild(btn);
+            tr.appendChild(tdRem);
+
+            body.appendChild(tr);
+        });
+    }
+
+    function addFullBillPayment() {
+        const amt = parseFloat(document.getElementById('fullBillInput').value);
+        const payerIdx = parseInt(document.getElementById('fullBillPayerSelect').value);
+        if (isNaN(amt) || amt <= 0 || isNaN(payerIdx)) return;
+
+        fullBillPayments.push({ payerIdx, amount: amt });
+        directPaid[payerIdx] = (directPaid[payerIdx] || 0) + amt;
+
+        document.getElementById('fullBillInput').value = '';
+        rebuildFullBillTable();
+        updateAll();
+    }
+
+    function rebuildFullBillTable() {
+        const body = document.getElementById('fullBillBody');
+        body.innerHTML = '';
+        fullBillPayments.forEach((pmt, i) => {
+            const tr = document.createElement('tr');
+
+            const tdAmt = document.createElement('td');
+            tdAmt.textContent = pmt.amount.toFixed(2);
+            tr.appendChild(tdAmt);
+
+            const tdPayer = document.createElement('td');
+            tdPayer.textContent = persons[pmt.payerIdx] || '';
+            tr.appendChild(tdPayer);
+
+            const tdRem = document.createElement('td');
+            const btn = document.createElement('button');
+            btn.textContent = 'X';
+            btn.className = 'remove-btn';
+            btn.onclick = () => {
+                directPaid[pmt.payerIdx] -= pmt.amount;
+                fullBillPayments.splice(i, 1);
+                rebuildFullBillTable();
+                updateAll();
+            };
+            tdRem.appendChild(btn);
+            tr.appendChild(tdRem);
+
+            body.appendChild(tr);
+        });
+    }
+
+    function updateAll() {
+        const n = persons.length;
+        if (n === 0) return;
+
+        const consumed = new Array(n).fill(0);
+        let rateTotal = 0;
+        items.forEach(item => {
+            rateTotal += item.rate;
+            const count = item.selected.filter(v => v).length;
+            if (count === 0) return;
+            const share = item.rate / count;
+            item.selected.forEach((v, idx) => { if (v) consumed[idx] += share; });
+        });
+
+        document.getElementById('rateTotalCell').textContent = rateTotal.toFixed(2);
+
+        const restTotal = parseFloat(document.getElementById('restaurantTotalInput').value) || 0;
+        const effective = restTotal - tableDiscount;
+        document.getElementById('effectiveBill').textContent = effective.toFixed(2);
+
+        const perPersonDiscount = n > 0 ? tableDiscount / n : 0;
+
+        const totalCells = document.querySelectorAll('#totalRow .person-total');
+        for (let i = 0; i < n; i++) {
+            const grand = consumed[i] - perPersonDiscount;
+            totalCells[i].textContent = grand.toFixed(2);
+        }
+
+        const paid = new Array(n).fill(0);
+        for (let i = 0; i < n; i++) {
+            paid[i] = (directPaid[i] || 0) + (specialPaid[i] || 0);
+        }
+
+        const net = new Array(n).fill(0);
+        for (let i = 0; i < n; i++) {
+            const effConsumed = consumed[i] - perPersonDiscount;
+            net[i] = effConsumed - paid[i];
+        }
+
+        let html = '<div class="table-wrapper"><table><thead><tr>' +
+                   '<th>Person</th>' +
+                   '<th>Consumed (after discount)</th>' +
+                   '<th>Paid</th>' +
+                   '<th>Net (+ owes / - gets)</th>' +
+                   '</tr></thead><tbody>';
+        for (let i = 0; i < n; i++) {
+            const effConsumed = consumed[i] - perPersonDiscount;
+            html += `<tr>
+                        <td>${persons[i]}</td>
+                        <td>${effConsumed.toFixed(2)}</td>
+                        <td>${paid[i].toFixed(2)}</td>
+                        <td>${net[i].toFixed(2)}</td>
+                     </tr>`;
+        }
+        html += '</tbody></table></div>';
+        document.getElementById('summary').innerHTML = html;
+
+        const creditors = [], debtors = [];
+        for (let i = 0; i < n; i++) {
+            if (net[i] < -0.01) creditors.push({ idx: i, amt: -net[i] });
+            else if (net[i] > 0.01) debtors.push({ idx: i, amt: net[i] });
+        }
+
+        const container = document.getElementById('settlements');
+        if (!creditors.length && !debtors.length) {
+            container.innerHTML = '<div class="settlement-ok">Everyone is settled.</div>';
+            return;
+        }
+
+        const cards = [];
+        let ci = 0, di = 0;
+        while (ci < creditors.length && di < debtors.length) {
+            const c = creditors[ci], d = debtors[di];
+            const pay = Math.min(c.amt, d.amt);
+            cards.push(
+                `<div class="settlement-card">
+                    <span><span class="payer">${persons[d.idx]}</span> pays
+                          <span class="amount">₹${pay.toFixed(2)}</span> to
+                          <span class="receiver">${persons[c.idx]}</span></span>
+                 </div>`
+            );
+            c.amt -= pay;
+            d.amt -= pay;
+            if (c.amt <= 0.01) ci++;
+            if (d.amt <= 0.01) di++;
+        }
+        container.innerHTML = cards.join('');
+    }
+</script>
+</body>
+</html>
