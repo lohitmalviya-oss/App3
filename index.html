@@ -127,6 +127,8 @@
             }
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
 </head>
 <body>
 <h2>Logical Bill Splitter</h2>
@@ -257,6 +259,7 @@
 </div>
 
 <!-- SETTLEMENT -->
+    <button id="downloadPdfBtn" style="margin: 20px 0; padding: 12px 24px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">📥 Download Bill as PDF</button>
 <div style="margin-top:20px;">
   <div id="whoPaysHeader">
       <h3>Who pays whom</h3>
@@ -636,6 +639,20 @@
         }
         container.innerHTML = cards.join('');
     }
+
+        // PDF Download Function
+document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+    const element = document.body;
+    const opt = {
+        margin: 10,
+        filename: 'Splitoo_Bill_' + new Date().getTime() + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+});
 </script>
 </body>
 </html>
