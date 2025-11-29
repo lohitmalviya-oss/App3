@@ -97,6 +97,31 @@
 </head>
 <body>
     <h1>💳 Splitoo - Logical Bill Splitter</h1>
+            .person-badge {
+            background: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        .person-badge button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0;
+            font-size: 16px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+        }
+        .person-badge button:hover {
+            opacity: 0.7;
+        }
     
     <div class="section">
         <h2>Add Persons</h2>
@@ -104,6 +129,7 @@
             <input type="text" id="personInput" placeholder="Enter person name">
             <button onclick="addPerson()">+ Add Person</button>
         </div>
+                <div id="personsList" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
     </div>
     
     <div class="section">
@@ -184,6 +210,16 @@
         function addItem() {
             const nameEl = document.getElementById('itemNameInput');
             const rateEl = document.getElementById('itemRateInput');
+
+                    function removePerson(idx) {
+            persons.splice(idx, 1);
+            items.forEach(item => item.selected.splice(idx, 1));
+            billPayments = billPayments.filter(p => p.payerIdx !== idx).map(p => ({
+                ...p,
+                payerIdx: p.payerIdx > idx ? p.payerIdx - 1 : p.payerIdx
+            }));
+            rebuildAll();
+        }
             const name = nameEl.value.trim();
             const rate = parseFloat(rateEl.value);
             
@@ -222,6 +258,7 @@
 
         function rebuildAll() {
             rebuildItemsTable();
+                        rebuildPersonsList();
             rebuildPayersDropdown();
             rebuildBillTable();
             updateSummary();
@@ -260,6 +297,17 @@
             body.innerHTML = '';
             billPayments.forEach((p, i) => {
                 body.innerHTML += `<tr><td>₹${p.amount.toFixed(2)}</td><td>${persons[p.payerIdx]}</td><td><button class="remove-btn" onclick="removeBillPayment(${i})">Remove</button></td></tr>`;
+            });
+        }
+
+                function rebuildPersonsList() {
+            const container = document.getElementById('personsList');
+            container.innerHTML = '';
+            persons.forEach((person, idx) => {
+                const badge = document.createElement('div');
+                badge.className = 'person-badge';
+                badge.innerHTML = `${person}<button onclick="removePerson(${idx})" title="Remove person">×</button>`;
+                container.appendChild(badge);
             });
         }
 
